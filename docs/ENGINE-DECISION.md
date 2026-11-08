@@ -1,25 +1,60 @@
 # Tracing engine decision
 
-## Phase 1: ImageTracerJS
+## Selected engine: VTracer 1.0 on browser WebAssembly
 
-The first browser prototype uses ImageTracerJS because it exposes a browser-facing image-to-SVG API and can run without a server. This lets the project establish its import, settings, preview, and export workflow before committing to a more involved engine port.
+VectorLab now wraps the official VTracer 1.0 Rust library in the small `wasm/` crate. The wrapper accepts decoded RGBA pixels and returns SVG. It is compiled specifically for `wasm32-unknown-unknown` using `wasm-pack --target web`; it does not use the Node.js-targeted npm distribution.
 
-## Target: VTracer on WebAssembly
+Upstream: https://github.com/visioncortex/vtracer
 
-VTracer is the intended long-term tracing engine because it offers a stronger foundation for high-quality raster vectorization. The target integration must compile the Rust engine for `wasm32-unknown-unknown` (or another explicitly browser-compatible target), expose a small JavaScript API, and run heavy work in a Web Worker.
+## Why VTracer
 
-Do not bundle a Node.js-only WASM package into the browser build and assume it is compatible. Validate the generated WASM module, browser APIs, memory behavior, and licence before integration.
+VTracer provides spline curve fitting, polygon and pixel fitting modes, curve simplification, speckle filtering, palette quantization, and SVG output optimization. These capabilities directly address the excessive anchor points and uneven contours seen in the first VectorLab exports.
 
-## Adapter boundary
+## Browser architecture
 
-The UI calls the `traceImage(file, settings)` adapter in `apps/web/src/lib/trace.ts`. Keep engine-specific calls behind this boundary so VTracer can replace the prototype engine without redesigning the workspace.
+1. The browser decodes the selected image and applies preset-specific alpha and palette preprocessing.
+2. The image's RGBA pixel buffer is transferred to a dedicated Web Worker.
+3. The worker loads the VTracer WebAssembly module and performs vectorization.
+4. The worker returns SVG text to the React interface for preview and download.
 
-## Acceptance criteria for VTracer
+The original image is not uploaded. The worker is terminated after each trace.
 
-- Runs in current desktop browsers without a server-side image upload
-- Works inside a Web Worker
-- Supports cancellation or safe termination for large images
-- Reports useful errors rather than freezing the interface
-- Produces valid, self-contained SVG
-- Has documented build steps and third-party licence notices
-- Is benchmarked against a representative set of logos, illustrations, and photographs
+## Presets
+
+- Logo: spline fitting, limited palette, tighter curve simplification, and small-speckle filtering.
+- Illustration: spline fitting with more colour and detail retention.
+- Photo: spline fitting with a larger palette and stronger small-region filtering.
+
+The current UI sliders map to VTracer's colour count, segment length, curve simplification tolerance, and speckle filter. The mapping will be refined after visual benchmarking.
+
+## Build requirements
+
+- Node.js 22.12+ and npm
+- Stable Rust toolchain
+- `wasm32-unknown-unknown` Rust target
+- `wasm-pack`
+
+From the repository root:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+npm install
+npm run build:wasm
+npm run dev
+```
+
+The generated package is written to `apps/web/src/wasm/pkg` and is not committed.
+
+## Acceptance and quality validation
+
+The Mitrang logo is the first benchmark image. Compare the SVG in Illustrator at high zoom and check:
+
+- Smooth circular contours and letter curves
+- Crisp corners and straight edges
+- No stray transparent or near-invisible paths
+- Correct colour separation and transparent background
+- Lower anchor-point count without visible shape distortion
+- Valid SVG import in Illustrator and Inkscape
+
+VTracer improves the curve-fitting foundation, but no automatic tracer can guarantee a perfect reconstruction of every raster logo. For exact brand artwork, the original vector master remains the reference.
