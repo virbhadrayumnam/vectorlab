@@ -16,15 +16,20 @@ type TraceMessage = {
 
 let wasmReady: Promise<unknown> | undefined;
 
-self.onmessage = async (event: MessageEvent<TraceMessage>) => {
+const workerScope = self as unknown as {
+  onmessage: ((event: MessageEvent<TraceMessage>) => void) | null;
+  postMessage: (message: unknown) => void;
+};
+
+workerScope.onmessage = async (event: MessageEvent<TraceMessage>) => {
   const { id, pixels, width, height, options } = event.data;
   try {
     wasmReady ??= init();
     await wasmReady;
     const svg = trace_rgba(new Uint8Array(pixels), width, height, JSON.stringify(options));
-    self.postMessage({ id, svg });
+    workerScope.postMessage({ id, svg });
   } catch (error) {
-    self.postMessage({
+    workerScope.postMessage({
       id,
       error: error instanceof Error ? error.message : String(error),
     });
