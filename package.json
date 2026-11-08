@@ -1,0 +1,16 @@
+{
+  "name": "vectorlab",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Free and open-source browser-based raster-to-vector studio",
+  "license": "MIT",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @vectorlab/web",
+    "build": "npm run build --workspace @vectorlab/web",
+    "preview": "npm run preview --workspace @vectorlab/web",
+    "typecheck": "npm run typecheck --workspace @vectorlab/web"
+  }
+}
