@@ -8,8 +8,9 @@
     "apps/web"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @vectorlab/web",
-    "build": "npm run build --workspace @vectorlab/web",
+    "build:wasm": "wasm-pack build wasm --target web --out-dir ../apps/web/src/wasm/pkg --out-name vectorlab_wasm",
+    "dev": "npm run build:wasm && npm run dev --workspace @vectorlab/web",
+    "build": "npm run build:wasm && npm run build --workspace @vectorlab/web",
     "preview": "npm run preview --workspace @vectorlab/web",
     "typecheck": "npm run typecheck --workspace @vectorlab/web"
   }
