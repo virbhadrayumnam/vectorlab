@@ -1,5 +1,3 @@
-import ImageTracer from "imagetracerjs";
-
 export type TracePreset = "logo" | "illustration" | "photo";
 
 export interface TraceSettings {
@@ -13,16 +11,10 @@ export interface TraceSettings {
 export const defaultTraceSettings: TraceSettings = {
   preset: "logo",
   colors: 4,
-  detail: 0.8,
-  smoothness: 1.2,
-  pathOmit: 12,
+  detail: 2,
+  smoothness: 0.45,
+  pathOmit: 3,
 };
-
-const presetOptions = {
-  logo: { alphaThreshold: 128, linefilter: true, rightangleenhance: true, blurRadius: 0, blurDelta: 20 },
-  illustration: { alphaThreshold: 24, linefilter: true, rightangleenhance: true, blurRadius: 0, blurDelta: 20 },
-  photo: { alphaThreshold: 8, linefilter: false, rightangleenhance: false, blurRadius: 1, blurDelta: 24 },
-} as const;
 
 interface ColorBin {
   r: number;
@@ -67,11 +59,16 @@ function makePalette(pixels: ImageData, limit: number): number[][] {
   if (!bins.length) return [[0, 0, 0]];
 
   const makeBox = (items: ColorBin[]): ColorBox => {
-    const ranges = ["r", "g", "b"].map((channel) => {
-      const values = items.map((item) => item[channel as "r" | "g" | "b"]);
+    const channels = ["r", "g", "b"] as const;
+    const ranges = channels.map((channel) => {
+      const values = items.map((item) => item[channel]);
       return Math.max(...values) - Math.min(...values);
     });
-    return { bins: items, range: Math.max(...ranges), population: items.reduce((sum, item) => sum + item.count, 0) };
+    return {
+      bins: items,
+      range: Math.max(...ranges),
+      population: items.reduce((sum, item) => sum + item.count, 0),
+    };
   };
 
   const boxes: ColorBox[] = [makeBox(bins)];
@@ -126,7 +123,7 @@ function nearestColor(r: number, g: number, b: number, palette: number[][]): num
   return best;
 }
 
-async function preprocessImage(file: File, settings: TraceSettings): Promise<Blob> {
+async function preprocessImage(file: File, settings: TraceSettings): Promise<ImageData> {
   const image = new Image();
   const sourceUrl = URL.createObjectURL(file);
   try {
@@ -144,12 +141,14 @@ async function preprocessImage(file: File, settings: TraceSettings): Promise<Blo
     context.drawImage(image, 0, 0);
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-    const preset = presetOptions[settings.preset];
 
     if (settings.preset === "logo") {
+      // Quantize anti-aliased logo pixels to a small, stable palette. Fully
+      // transparent pixels are normalised so hidden RGB values cannot create
+      // stray regions in the trace.
       const palette = makePalette(imageData, settings.colors);
       for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] < preset.alphaThreshold) {
+        if (data[i + 3] < 128) {
           data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0;
         } else {
           const color = nearestColor(data[i], data[i + 1], data[i + 2], palette);
@@ -157,59 +156,43 @@ async function preprocessImage(file: File, settings: TraceSettings): Promise<Blo
         }
       }
     } else {
+      const alphaThreshold = settings.preset === "illustration" ? 24 : 8;
       for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] < preset.alphaThreshold) {
+        if (data[i + 3] < alphaThreshold) {
           data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0;
         }
       }
     }
 
-    context.putImageData(imageData, 0, 0);
-    return await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Could not prepare the image for tracing.")), "image/png");
-    });
+    return imageData;
   } finally {
     URL.revokeObjectURL(sourceUrl);
   }
 }
 
 export async function traceImage(file: File, settings: TraceSettings): Promise<string> {
-  const preparedImage = await preprocessImage(file, settings);
-  const sourceUrl = URL.createObjectURL(preparedImage);
-  const preset = presetOptions[settings.preset];
+  const imageData = await preprocessImage(file, settings);
+  const pixels = new Uint8Array(imageData.data);
+  const worker = new Worker(new URL("./trace.worker.ts", import.meta.url), { type: "module" });
 
   return new Promise((resolve, reject) => {
-    try {
-      ImageTracer.imageToSVG(
-        sourceUrl,
-        (svg) => {
-          URL.revokeObjectURL(sourceUrl);
-          if (!svg || !svg.includes("<svg")) {
-            reject(new Error("The tracing engine did not return a valid SVG."));
-            return;
-          }
-          resolve(svg);
-        },
-        {
-          numberofcolors: settings.colors,
-          ltres: settings.detail,
-          qtres: settings.smoothness,
-          pathomit: settings.pathOmit,
-          scale: 1,
-          viewbox: true,
-          desc: false,
-          rightangleenhance: preset.rightangleenhance,
-          linefilter: preset.linefilter,
-          blurradius: preset.blurRadius,
-          blurdelta: preset.blurDelta,
-          roundcoords: 2,
-          mincolorratio: 0.001,
-          colorquantcycles: 3,
-        },
-      );
-    } catch (error) {
-      URL.revokeObjectURL(sourceUrl);
-      reject(error instanceof Error ? error : new Error("Unable to trace this image."));
-    }
+    const cleanup = () => worker.terminate();
+    worker.onmessage = (event: MessageEvent<{ id: number; svg?: string; error?: string }>) => {
+      cleanup();
+      if (event.data.error) reject(new Error(event.data.error));
+      else if (event.data.svg) resolve(event.data.svg);
+      else reject(new Error("VTracer returned an empty SVG."));
+    };
+    worker.onerror = (event) => {
+      cleanup();
+      reject(new Error(event.message || "The tracing worker stopped unexpectedly."));
+    };
+    worker.postMessage({
+      id: 1,
+      pixels: pixels.buffer,
+      width: imageData.width,
+      height: imageData.height,
+      options: settings,
+    }, [pixels.buffer]);
   });
 }
