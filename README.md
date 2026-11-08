@@ -12,16 +12,19 @@ Phase 1 foundation is under development. The current prototype includes image im
 
 - Import PNG, JPEG, and WebP images
 - Drag and drop an image onto the workspace
-- Adjust colour count, detail thresholds, and path filtering
+- Choose Logo, Illustration, or Photo tracing presets
+- Adjust colour count, curve simplification, detail, and speckle filtering
 - Preview the generated SVG
 - Download the result as an SVG file
 - Process images locally in the browser
 
 ## Development
 
-Requirements: Node.js 20.19+ or 22.12+, and npm.
+Requirements: Node.js 22.12+, npm, Rust stable, the `wasm32-unknown-unknown` target, and `wasm-pack`.
 
 ```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
 npm install
 npm run dev
 ```
@@ -39,12 +42,13 @@ npm run preview
 
 - React and TypeScript
 - Vite
-- ImageTracerJS for the initial browser-based tracing engine
+- VTracer 1.0 Rust engine compiled to browser WebAssembly
+- Web Worker for background tracing
 - SVG for vector output
 
 ### Tracing engine direction
 
-ImageTracerJS is used as the initial browser-compatible engine so the first release can work without a server. The long-term engine target is **VTracer compiled to WebAssembly for the browser**. The VTracer integration will be implemented and benchmarked separately; a Node-targeted WASM package must not be assumed to work in a browser.
+VectorLab wraps the official VTracer 1.0 Rust library in a small `wasm-bindgen` crate. It is compiled specifically for `wasm32-unknown-unknown` with the `web` target and runs in a browser Web Worker. The Node.js npm package is not used in the browser build.
 
 ## Privacy
 
