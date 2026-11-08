@@ -3,6 +3,7 @@ import {
   defaultTraceSettings,
   traceImage,
   type TraceSettings,
+  type TracePreset,
 } from "./lib/trace";
 
 type TraceStatus = "idle" | "tracing" | "ready" | "error";
@@ -178,6 +179,29 @@ function App() {
 
               <aside className="settings-panel">
                 <div className="panel-heading"><span>TRACE SETTINGS</span><button className="reset-settings" onClick={() => setSettings(defaultTraceSettings)}>Reset</button></div>
+                <div className="setting preset-setting">
+                  <div className="setting-label"><span>Quality preset</span><output>Recommended</output></div>
+                  <div className="preset-options" role="group" aria-label="Tracing quality preset">
+                    {([
+                      ["logo", "Logo", "Clean edges and flat colours"],
+                      ["illustration", "Illustration", "Artwork and drawings"],
+                      ["photo", "Photo", "Shaded and detailed images"],
+                    ] as [TracePreset, string, string][]).map(([value, label, description]) => (
+                      <button
+                        key={value}
+                        className={settings.preset === value ? "preset-option selected" : "preset-option"}
+                        onClick={() => setSettings((current) => ({ ...current, preset: value }))}
+                        aria-pressed={settings.preset === value}
+                        title={description}
+                      >{label}</button>
+                    ))}
+                  </div>
+                  <p className="preset-description">
+                    {settings.preset === "logo" ? "Reduces colour noise, cleans transparency and prioritises crisp shapes." :
+                      settings.preset === "illustration" ? "Keeps more tonal detail while filtering tiny stray pixels." :
+                      "Preserves more shading and tonal variation in photographs."}
+                  </p>
+                </div>
                 <div className="setting">
                   <div className="setting-label"><label htmlFor="colors">Colours</label><output>{settings.colors}</output></div>
                   <input id="colors" type="range" min="2" max="32" step="1" value={settings.colors} onChange={(e) => updateSetting("colors", Number(e.target.value))} />
