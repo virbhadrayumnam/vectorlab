@@ -15,7 +15,7 @@ declare module "imagetracerjs" {
 
   interface ImageTracer {
     imageToSVG(
-      image: HTMLImageElement,
+      imageUrl: string,
       callback: (svg: string) => void,
       options?: TraceOptions,
     ): void;
