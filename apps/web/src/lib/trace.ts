@@ -12,7 +12,7 @@ export interface TraceSettings {
 
 export const defaultTraceSettings: TraceSettings = {
   preset: "logo",
-  colors: 8,
+  colors: 4,
   detail: 0.8,
   smoothness: 1.2,
   pathOmit: 12,
