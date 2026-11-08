@@ -12,13 +12,23 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Build VTracer WebAssembly
+        run: npm run build:wasm
       - name: Type-check
         run: npm run typecheck
       - name: Build web application
-        run: npm run build
+        run: npm run build --workspace @vectorlab/web
