@@ -76,3 +76,10 @@ footer a{color:#c5c7bd;letter-spacing:0}
 .footer-dot{color:#c8f169;padding:0 5px}
 @media(max-width:760px){.intro{padding:55px 0 32px}.intro h1{letter-spacing:-1.7px}.work-grid{grid-template-columns:1fr}.preview-stage{height:340px}.benefits{margin:45px auto;gap:8px}.benefits>div{padding:0 8px}.benefits strong{font-size:10px}.benefits p{font-size:9px}footer{font-size:8px;gap:10px}.topbar{height:62px}}
 @media(max-width:430px){.local-badge{display:none}.intro p{max-width:300px;margin:auto}.dropzone{min-height:300px}.preview-stage{height:280px}.benefits{grid-template-columns:1fr;gap:23px}.benefits>div{border:0}.benefits p{font-size:10px}footer{flex-direction:column;justify-content:center;gap:8px}}
+
+.preset-setting{padding-top:16px}
+.preset-options{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}
+.preset-option{border:1px solid #ffffff18;background:#222528;color:#a8aaa2;border-radius:6px;padding:8px 4px;font-size:10px;font-weight:600;transition:.15s}
+.preset-option:hover{border-color:#a8c96c;color:#e8eadf}
+.preset-option.selected{background:#303a24;border-color:#a9d45c;color:#d9f5a1;box-shadow:inset 0 0 0 1px #a9d45c22}
+.preset-description{font-size:9px;line-height:1.5;color:#85877f;margin:8px 0 0}
