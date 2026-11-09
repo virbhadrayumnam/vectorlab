@@ -22,8 +22,8 @@
 
 ## Phase 3: Advanced workflows
 
-- [ ] Integrate browser-compiled VTracer WebAssembly
-- [ ] Move tracing into a Web Worker
+- [x] Integrate browser-compiled VTracer WebAssembly
+- [x] Move tracing into a Web Worker
 - [ ] Progress reporting and cancellation
 - [ ] Advanced path cleanup and simplification
 - [ ] DXF export evaluation
